@@ -224,7 +224,7 @@ namespace websocket // implementation
             else if (message.size() <= 0xFFFF)
             {
                 frame.push_back(126);
-                frame.push_back(n >> 8);
+                frame.push_back((n >> 8) & 0xFF);
                 frame.push_back(n & 0xFF);
             }
             else if (message.size() <= 0xFFffFFff)

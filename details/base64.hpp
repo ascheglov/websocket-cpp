@@ -19,7 +19,7 @@ inline std::string b64encode(const void* data, std::size_t size)
 
     auto fullBlocksCount = size / 3;
     auto bytes = static_cast<const unsigned char*>(data);
-    for (auto i = 0; i != fullBlocksCount; ++i)
+    for (auto i = 0u; i != fullBlocksCount; ++i)
     {
         unsigned b0 = bytes[i * 3 + 0];
         unsigned b1 = bytes[i * 3 + 1];
@@ -40,7 +40,7 @@ inline std::string b64encode(const void* data, std::size_t size)
     {
         unsigned b0 = bytes[i * 3 + 0];
         unsigned b1 = 0;
-        unsigned b2 = 0;
+        //unsigned b2 = 0;
         auto idx0 = b0 >> 2;
         auto idx1 = (b0 & 0x03) << 4 | b1 >> 4;
         encoded[i * 4 + 0] = table[idx0];
