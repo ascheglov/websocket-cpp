@@ -101,11 +101,14 @@ exit 0</Command>
   <ItemGroup>
     <ClInclude Include="details\Acceptor.hpp" />
     <ClInclude Include="details\base64.hpp" />
+    <ClInclude Include="details\Connection.hpp" />
     <ClInclude Include="details\FrameReceiver.hpp" />
     <ClInclude Include="details\handshake.hpp" />
     <ClInclude Include="details\http.hpp" />
     <ClInclude Include="details\http_parser.hpp" />
     <ClInclude Include="details\sha1.hpp" />
+    <ClInclude Include="ServerImpl.hpp" />
+    <ClInclude Include="server_fwd.hpp" />
     <ClInclude Include="tests\catch_wrap.hpp" />
     <ClInclude Include="websocket-cpp.hpp" />
   </ItemGroup>

@@ -73,6 +73,15 @@
     <ClInclude Include="details\FrameReceiver.hpp">
       <Filter>Header Files\details</Filter>
     </ClInclude>
+    <ClInclude Include="details\Connection.hpp">
+      <Filter>Header Files\details</Filter>
+    </ClInclude>
+    <ClInclude Include="server_fwd.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerImpl.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="docs\rfc2616.txt">

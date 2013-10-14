@@ -3,18 +3,16 @@
 
 #pragma once
 
-#include <cstdint>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
-#include <iosfwd>
+#include <tuple>
+
+#include "server_fwd.hpp"
 
 namespace websocket
 {
-    using ConnectionId = std::uint32_t;
-    // more than one year at 100 new connections per second
-
-    enum class Event { NewConnection, Message, Disconnect };
-
     class Server
     {
     public:
@@ -32,7 +30,9 @@ namespace websocket
         void drop(ConnectionId connId);
 
     private:
-        struct Impl;
-        std::unique_ptr<Impl> m_impl;
+        using tuple_t = std::tuple<Event, ConnectionId, std::string>;
+        std::unique_ptr<ServerImpl> m_impl;
+        std::deque<tuple_t> m_queue;
+        std::mutex m_mutex;
     };
 }
