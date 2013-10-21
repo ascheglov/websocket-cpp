@@ -8,7 +8,7 @@
 #include <ostream>
 #include <thread>
 #include <memory>
-#include <asio.hpp>
+#include <boost/asio.hpp>
 
 namespace websocket
 {
@@ -16,11 +16,11 @@ namespace websocket
     {
     public:
         template<typename Callback>
-        Acceptor(asio::io_service& ioService,
+        Acceptor(boost::asio::io_service& ioService,
             const std::string& ip, unsigned short port,
             std::ostream& log, Callback&& callback)
             : m_ioService{ioService}
-            , m_acceptor{m_ioService, asio::ip::tcp::endpoint{asio::ip::address_v4::from_string(ip), port}}
+            , m_acceptor{m_ioService, boost::asio::ip::tcp::endpoint{boost::asio::ip::address_v4::from_string(ip), port}}
             , m_log{&log}
             , m_callback{callback}
         {
@@ -40,8 +40,8 @@ namespace websocket
         {
             while (!m_stop)
             {
-                asio::ip::tcp::socket socket{m_ioService};
-                asio::error_code ec;
+                boost::asio::ip::tcp::socket socket{ m_ioService };
+                boost::system::error_code ec;
                 m_acceptor.accept(socket, ec);
                 if (ec)
                 {
@@ -64,10 +64,10 @@ namespace websocket
         }
 
         std::atomic<bool> m_stop{false};
-        std::reference_wrapper<asio::io_service> m_ioService;
+        std::reference_wrapper<boost::asio::io_service> m_ioService;
         std::ostream* m_log;
-        asio::ip::tcp::acceptor m_acceptor;
+        boost::asio::ip::tcp::acceptor m_acceptor;
         std::unique_ptr<std::thread> m_acceptThread;
-        std::function<void(asio::ip::tcp::socket&&)> m_callback;
+        std::function<void(boost::asio::ip::tcp::socket&&)> m_callback;
     };
 }

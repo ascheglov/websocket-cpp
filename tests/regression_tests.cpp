@@ -4,7 +4,7 @@
 
 #include <thread>
 #include <tuple>
-#include <asio.hpp>
+#include <boost/asio.hpp>
 
 namespace
 {
@@ -41,12 +41,12 @@ namespace
 {
     struct Client
     {
-        asio::io_service m_ioService;
-        asio::ip::tcp::socket m_socket{m_ioService};
+        boost::asio::io_service m_ioService;
+        boost::asio::ip::tcp::socket m_socket{ m_ioService };
 
         Client()
         {
-            asio::ip::tcp::endpoint serverEndpoint{asio::ip::address_v4::from_string(ServerIp), ServerPort};
+            boost::asio::ip::tcp::endpoint serverEndpoint{ boost::asio::ip::address_v4::from_string(ServerIp), ServerPort };
             m_socket.connect(serverEndpoint);
 
             std::string request =
@@ -57,10 +57,10 @@ namespace
                 "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" "\r\n"
                 "Sec-WebSocket-Version: 13" "\r\n"
                 "\r\n";
-            asio::write(m_socket, asio::buffer(request));
+            boost::asio::write(m_socket, boost::asio::buffer(request));
 
-            asio::streambuf replyBuf;
-            asio::read_until(m_socket, replyBuf, "\r\n\r\n");
+            boost::asio::streambuf replyBuf;
+            boost::asio::read_until(m_socket, replyBuf, "\r\n\r\n");
             std::stringstream replyStream;
             replyStream << &replyBuf;
             auto replyStr = replyStream.str();
@@ -79,14 +79,14 @@ namespace
         void sendFrame(const char(&s)[N])
         {
             std::string frame{s, s + N - 1};
-            asio::write(m_socket, asio::buffer(frame));
+            boost::asio::write(m_socket, boost::asio::buffer(frame));
         }
 
         std::string recvFrame()
         {
             const unsigned bufSize = 0x20000;
             static unsigned char buf[bufSize];
-            auto n = asio::read(m_socket, asio::buffer(buf), asio::transfer_at_least(1));
+            auto n = boost::asio::read(m_socket, boost::asio::buffer(buf), boost::asio::transfer_at_least(1));
 
             if (buf[1] == 126)
             {
@@ -94,7 +94,7 @@ namespace
                 assert(n > headerSize);
                 unsigned dataSize = (buf[2] << 8) | buf[3];
                 if (n < dataSize + headerSize)
-                    n += asio::read(m_socket, asio::buffer(buf + n, bufSize - n), asio::transfer_at_least(1));
+                    n += boost::asio::read(m_socket, boost::asio::buffer(buf + n, bufSize - n), boost::asio::transfer_at_least(1));
             }
             else if (buf[1] == 127)
             {
@@ -102,7 +102,7 @@ namespace
                 assert(n > headerSize);
                 unsigned dataSize = (buf[6] << 24) | (buf[7] << 16) | (buf[8] << 8) | buf[9];
                 if (n < dataSize + headerSize)
-                    n += asio::read(m_socket, asio::buffer(buf + n, bufSize - n), asio::transfer_at_least(1));
+                    n += boost::asio::read(m_socket, boost::asio::buffer(buf + n, bufSize - n), boost::asio::transfer_at_least(1));
             }
 
             auto s = (const char*)buf;

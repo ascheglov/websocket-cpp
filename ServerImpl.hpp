@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <algorithm> // required by asio.hpp, will be fixed in boost 1.55
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -11,7 +10,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
-#include <asio.hpp>
+#include <boost/asio.hpp>
 
 #include "details/Acceptor.hpp"
 #include "details/Connection.hpp"
@@ -32,7 +31,7 @@ namespace websocket
             m_workerThread.reset(new std::thread{[this]{ workerThread(); }});
             m_acceptor = std::make_unique<Acceptor>(
                 m_ioService, ip, port, log,
-                [this](asio::ip::tcp::socket&& s){ onAccept(std::move(s)); });
+                [this](boost::asio::ip::tcp::socket&& s){ onAccept(std::move(s)); });
         }
 
         ~ServerImpl()
@@ -90,7 +89,7 @@ namespace websocket
             m_ioService.post(std::forward<F>(f));
         }
 
-        void onAccept(asio::ip::tcp::socket socket)
+        void onAccept(boost::asio::ip::tcp::socket socket)
         {
             if (!performHandshake(socket))
                 return;
@@ -110,11 +109,11 @@ namespace websocket
             m_callback(Event::NewConnection, id, "");
         }
 
-        bool performHandshake(asio::ip::tcp::socket& socket)
+        bool performHandshake(boost::asio::ip::tcp::socket& socket)
         {
-            asio::error_code ec;
-            asio::streambuf buf;
-            asio::read_until(socket, buf, "\r\n\r\n", ec);
+            boost::system::error_code ec;
+            boost::asio::streambuf buf;
+            boost::asio::read_until(socket, buf, "\r\n\r\n", ec);
             if (ec)
             {
                 m_log << "Handshake: read error: " << ec << "\n";
@@ -125,7 +124,7 @@ namespace websocket
             std::ostringstream replyStream;
             auto status = handshake(requestStream, replyStream);
 
-            asio::write(socket, asio::buffer(replyStream.str()), ec);
+            boost::asio::write(socket, boost::asio::buffer(replyStream.str()), ec);
 
             if (status != http::Status::OK)
             {
@@ -195,15 +194,15 @@ namespace websocket
         {
             auto id = conn.m_id;
             conn.m_isSending = true;
-            asio::async_write(conn.m_socket, asio::buffer(conn.m_sendQueue.front()),
-                [this, id](const asio::error_code& ec, std::size_t)
+            boost::asio::async_write(conn.m_socket, boost::asio::buffer(conn.m_sendQueue.front()),
+                [this, id](const boost::system::error_code& ec, std::size_t)
             {
                 if (auto conn = find(id))
                     onSendComplete(*conn, ec);
             });
         }
 
-        void onSendComplete(Connection& conn, const asio::error_code& ec)
+        void onSendComplete(Connection& conn, const boost::system::error_code& ec)
         {
             conn.m_isSending = false;
             if (ec)
@@ -227,19 +226,19 @@ namespace websocket
         {
             auto id = conn.m_id;
             conn.beginRecvFrame(
-                [this, id](const asio::error_code& ec, std::size_t bytesTransferred)
+                [this, id](const boost::system::error_code& ec, std::size_t bytesTransferred)
             {
                 if (auto connPtr = find(id))
                     onRecvComplete(*connPtr, ec, bytesTransferred);
             });
         }
 
-        void onRecvComplete(Connection& conn, const asio::error_code& ec, std::size_t bytesTransferred)
+        void onRecvComplete(Connection& conn, const boost::system::error_code& ec, std::size_t bytesTransferred)
         {
             conn.m_isReading = false;
             if (ec)
             {
-                if (ec.value() != asio::error::eof)
+                if (ec.value() != boost::asio::error::eof)
                     log("#", conn.m_id, ": recv error: ", ec);
             }
             else if (!conn.m_isClosed)
@@ -317,7 +316,7 @@ namespace websocket
         std::atomic<bool> m_isStopped{false};
         std::ostream& m_log;
 
-        asio::io_service m_ioService;
+        boost::asio::io_service m_ioService;
 
         std::unique_ptr<Acceptor> m_acceptor;
 
