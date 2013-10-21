@@ -52,7 +52,14 @@ namespace websocket
                     continue;
                 }
 
-                m_callback(std::move(socket));
+                try
+                {
+                    m_callback(std::move(socket));
+                }
+                catch (std::exception& e)
+                {
+                    (*m_log) << "accept callback error: " << e.what() << '\n';
+                }
             }
         }
 

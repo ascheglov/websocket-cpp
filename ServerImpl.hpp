@@ -112,14 +112,19 @@ namespace websocket
 
         bool performHandshake(asio::ip::tcp::socket& socket)
         {
+            asio::error_code ec;
             asio::streambuf buf;
-            asio::read_until(socket, buf, "\r\n\r\n");
-            std::istream requestStream(&buf);
+            asio::read_until(socket, buf, "\r\n\r\n", ec);
+            if (ec)
+            {
+                m_log << "Handshake: read error: " << ec << "\n";
+                return false;
+            }
 
+            std::istream requestStream(&buf);
             std::ostringstream replyStream;
             auto status = handshake(requestStream, replyStream);
 
-            asio::error_code ec;
             asio::write(socket, asio::buffer(replyStream.str()), ec);
 
             if (status != http::Status::OK)
