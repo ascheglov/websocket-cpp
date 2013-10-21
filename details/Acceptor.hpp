@@ -24,42 +24,50 @@ namespace websocket
             , m_log{&log}
             , m_callback{callback}
         {
-            m_acceptThread.reset(new std::thread{[this]{ acceptThread(); }});
+            beginAccept();
         }
     
         void stop()
         {
             m_stop = true;
-            m_acceptor.cancel();
-            m_acceptor.close();
-            m_acceptThread->join();
+            boost::system::error_code ignoreError;
+            m_acceptor.cancel(ignoreError);
+            m_acceptor.close(ignoreError);
         }
 
     private:
-        void acceptThread()
+        void beginAccept()
         {
-            while (!m_stop)
+            m_clientSocket = std::make_unique<boost::asio::ip::tcp::socket>(m_ioService);
+            m_acceptor.async_accept(*m_clientSocket, [this](boost::system::error_code ec){ onAccept(ec); });
+        }
+
+        void onAccept(boost::system::error_code ec)
+        {
+            if (m_stop)
+                return;
+
+            if (!ec)
             {
-                boost::asio::ip::tcp::socket socket{ m_ioService };
-                boost::system::error_code ec;
-                m_acceptor.accept(socket, ec);
-                if (ec)
-                {
-                    if (m_stop)
-                        return;
+                callCallback();
+            }
+            else
+            {
+                (*m_log) << "accept error: " << ec << '\n';
+            }
 
-                    (*m_log) << "accept error: " << ec << '\n';
-                    continue;
-                }
+            beginAccept();
+        }
 
-                try
-                {
-                    m_callback(std::move(socket));
-                }
-                catch (std::exception& e)
-                {
-                    (*m_log) << "accept callback error: " << e.what() << '\n';
-                }
+        void callCallback()
+        {
+            try
+            {
+                m_callback(std::move(*m_clientSocket));
+            }
+            catch (std::exception& e)
+            {
+                (*m_log) << "accept callback error: " << e.what() << '\n';
             }
         }
 
@@ -67,7 +75,7 @@ namespace websocket
         std::reference_wrapper<boost::asio::io_service> m_ioService;
         std::ostream* m_log;
         boost::asio::ip::tcp::acceptor m_acceptor;
-        std::unique_ptr<std::thread> m_acceptThread;
         std::function<void(boost::asio::ip::tcp::socket&&)> m_callback;
+        std::unique_ptr<boost::asio::ip::tcp::socket> m_clientSocket;
     };
 }

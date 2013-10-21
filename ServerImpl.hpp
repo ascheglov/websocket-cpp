@@ -28,10 +28,11 @@ namespace websocket
             : m_log(log)
             , m_callback(callback)
         {
-            m_workerThread.reset(new std::thread{[this]{ workerThread(); }});
             m_acceptor = std::make_unique<Acceptor>(
                 m_ioService, ip, port, log,
                 [this](boost::asio::ip::tcp::socket&& s){ onAccept(std::move(s)); });
+
+            m_workerThread.reset(new std::thread{[this]{ workerThread(); }});
         }
 
         ~ServerImpl()
