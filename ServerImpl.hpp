@@ -127,7 +127,6 @@ namespace websocket
 
             m_connTable.closeAll();
 
-            enqueue([]{}); // JIC, wake up queue
             m_workerThread->join();
         }
 
@@ -156,7 +155,8 @@ namespace websocket
             {
                 try
                 {
-                    m_ioService.run_one();
+                    m_ioService.run();
+                    assert(m_isStopped);
                 }
                 catch (std::exception& e)
                 {
