@@ -1,4 +1,4 @@
-#include "details/FrameReceiver.hpp"
+#include "details/frames.hpp"
 
 #include "catch_wrap.hpp"
 

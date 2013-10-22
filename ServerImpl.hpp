@@ -19,52 +19,6 @@
 
 namespace websocket
 {
-    inline std::string makeFrame(Opcode opcode, std::string data)
-    {
-        std::string frame;
-        
-        const auto FinalFragmentFlag = 0x80;
-        frame.push_back(FinalFragmentFlag | static_cast<char>(opcode));
-
-        auto n = data.size();
-        if (n <= 125)
-        {
-            frame.reserve(2 + n);
-            frame.push_back((char)n);
-        }
-        else if (n <= 0xFFFF)
-        {
-            frame.reserve(1 + 2 + n);
-
-            frame.push_back(126);
-
-            frame.push_back((n >> 8) & 0xFF);
-            frame.push_back(n & 0xFF);
-        }
-        else if (n <= 0xFFffFFff)
-        {
-            frame.reserve(1 + 8 + n);
-
-            frame.push_back(127);
-
-            frame.push_back(0);
-            frame.push_back(0);
-            frame.push_back(0);
-            frame.push_back(0);
-            frame.push_back((n >> 8 * 3) & 0xFF);
-            frame.push_back((n >> 8 * 2) & 0xFF);
-            frame.push_back((n >> 8 * 1) & 0xFF);
-            frame.push_back(n & 0xFF);
-        }
-        else
-        {
-            throw std::length_error("websocket message is too long");
-        }
-
-        frame.append(data);
-        return frame;
-    }
-
     class ServerImpl
     {
     public:
@@ -103,7 +57,7 @@ namespace websocket
             enqueue([=]
             {
                 if (auto conn = m_connTable.find(connId))
-                    sendFrame(*conn, isBinary ? Opcode::Binary : Opcode::Text, message);
+                    conn->sendFrame(isBinary ? Opcode::Binary : Opcode::Text, message);
             });
         }
 
@@ -117,6 +71,9 @@ namespace websocket
         }
 
     private:
+        using conn_t = Connection<ServerImpl>;
+        friend struct conn_t;
+
         void workerThread()
         {
             while (!m_isStopped)
@@ -151,8 +108,7 @@ namespace websocket
                 {
                     if (performHandshake(clientSocket, yield))
                     {
-                        auto& conn = m_connTable.add(std::move(clientSocket));
-                        beginRecvFrame(conn);
+                        auto& conn = m_connTable.add(std::move(clientSocket), *this);
                         m_callback(Event::NewConnection, conn.m_id, "");
                     }
                 }
@@ -198,87 +154,6 @@ namespace websocket
             return true;
         }
 
-        void sendFrame(Connection& conn, Opcode opcode, std::string data)
-        {
-            assert(std::this_thread::get_id() == m_workerThread->get_id());
-            conn.m_sendQueue.push_back(makeFrame(opcode, data));
-            if (conn.m_sendQueue.size() == 1)
-                sendNext(conn);
-        }
-
-        void sendNext(Connection& conn)
-        {
-            conn.m_isSending = true;
-            boost::asio::async_write(conn.m_socket, boost::asio::buffer(conn.m_sendQueue.front()),
-                [this, &conn](const boost::system::error_code& ec, std::size_t)
-            {
-                onSendComplete(conn, ec);
-            });
-        }
-
-        void onSendComplete(Connection& conn, const boost::system::error_code& ec)
-        {
-            conn.m_isSending = false;
-            if (ec)
-            {
-                log("#", conn.m_id, ": send error: ", ec);
-            }
-            else if (!conn.m_isClosed)
-            {
-                assert(std::this_thread::get_id() == m_workerThread->get_id());
-                conn.m_sendQueue.pop_front();
-                if (!conn.m_sendQueue.empty())
-                    sendNext(conn);
-
-                return;
-            }
-
-            dropImpl(conn);
-        }
-
-        void beginRecvFrame(Connection& conn)
-        {
-            conn.beginRecvFrame(
-                [this, &conn](const boost::system::error_code& ec, std::size_t bytesTransferred)
-            {
-                onRecvComplete(conn, ec, bytesTransferred);
-            });
-        }
-
-        void onRecvComplete(Connection& conn, const boost::system::error_code& ec, std::size_t bytesTransferred)
-        {
-            conn.m_isReading = false;
-            if (ec)
-            {
-                if (ec.value() != boost::asio::error::eof)
-                    log("#", conn.m_id, ": recv error: ", ec);
-            }
-            else if (!conn.m_isClosed)
-            {
-                conn.m_receiver.addBytes(bytesTransferred);
-                if (conn.m_receiver.isValidFrame())
-                {
-                    if (conn.m_receiver.opcode() == Opcode::Close)
-                    {
-                        sendFrame(conn, Opcode::Close, {});
-                    }
-                    else
-                    {
-                        processMessage(conn.m_id, conn.m_receiver);
-                        conn.m_receiver.shiftBuffer();
-                        beginRecvFrame(conn);
-                        return;
-                    }
-                }
-                else
-                {
-                    log("#", conn.m_id, ": invalid frame");
-                }
-            }
-
-            dropImpl(conn);
-        }
-
         void processMessage(ConnectionId id, FrameReceiver& receiver)
         {
             auto opcode = receiver.opcode();
@@ -294,7 +169,7 @@ namespace websocket
             }
         }
 
-        void dropImpl(Connection& conn)
+        void dropImpl(conn_t& conn)
         {
             if (!conn.m_isClosed)
             {
@@ -323,7 +198,7 @@ namespace websocket
 
         std::unique_ptr<std::thread> m_workerThread;
 
-        ConnectionTable m_connTable;
+        ConnectionTable<ServerImpl> m_connTable;
 
         std::function<void(Event, ConnectionId, std::string)> m_callback;
     };

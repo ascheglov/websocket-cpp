@@ -41,7 +41,7 @@
     <ClCompile Include="tests\sha1_tests.cpp">
       <Filter>Source Files\tests</Filter>
     </ClCompile>
-    <ClCompile Include="tests\FrameReceiver_tests.cpp">
+    <ClCompile Include="tests\frames_tests.cpp">
       <Filter>Source Files\tests</Filter>
     </ClCompile>
   </ItemGroup>
@@ -64,9 +64,6 @@
     <ClInclude Include="tests\catch_wrap.hpp">
       <Filter>Source Files\tests</Filter>
     </ClInclude>
-    <ClInclude Include="details\FrameReceiver.hpp">
-      <Filter>Header Files\details</Filter>
-    </ClInclude>
     <ClInclude Include="details\Connection.hpp">
       <Filter>Header Files\details</Filter>
     </ClInclude>
@@ -81,6 +78,9 @@
     </ClInclude>
     <ClInclude Include="server_src.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="details\frames.hpp">
+      <Filter>Header Files\details</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -20,6 +20,52 @@ namespace websocket
         ReservedB, ReservedC, ReservedD, ReservedE, ReservedF,
     };
 
+    inline std::string makeFrame(Opcode opcode, std::string data)
+    {
+        std::string frame;
+
+        const auto FinalFragmentFlag = 0x80;
+        frame.push_back(FinalFragmentFlag | static_cast<char>(opcode));
+
+        auto n = data.size();
+        if (n <= 125)
+        {
+            frame.reserve(2 + n);
+            frame.push_back((char)n);
+        }
+        else if (n <= 0xFFFF)
+        {
+            frame.reserve(1 + 2 + n);
+
+            frame.push_back(126);
+
+            frame.push_back((n >> 8) & 0xFF);
+            frame.push_back(n & 0xFF);
+        }
+        else if (n <= 0xFFffFFff)
+        {
+            frame.reserve(1 + 8 + n);
+
+            frame.push_back(127);
+
+            frame.push_back(0);
+            frame.push_back(0);
+            frame.push_back(0);
+            frame.push_back(0);
+            frame.push_back((n >> 8 * 3) & 0xFF);
+            frame.push_back((n >> 8 * 2) & 0xFF);
+            frame.push_back((n >> 8 * 1) & 0xFF);
+            frame.push_back(n & 0xFF);
+        }
+        else
+        {
+            throw std::length_error("websocket message is too long");
+        }
+
+        frame.append(data);
+        return frame;
+    }
+
     class FrameReceiver
     {
     public:

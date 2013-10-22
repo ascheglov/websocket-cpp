@@ -89,7 +89,7 @@ exit 0</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="tests\base64_tests.cpp" />
-    <ClCompile Include="tests\FrameReceiver_tests.cpp" />
+    <ClCompile Include="tests\frames_tests.cpp" />
     <ClCompile Include="tests\handshake_tests.cpp" />
     <ClCompile Include="tests\http_parser_tests.cpp" />
     <ClCompile Include="tests\main.cpp" />
@@ -100,7 +100,7 @@ exit 0</Command>
   <ItemGroup>
     <ClInclude Include="details\base64.hpp" />
     <ClInclude Include="details\Connection.hpp" />
-    <ClInclude Include="details\FrameReceiver.hpp" />
+    <ClInclude Include="details\frames.hpp" />
     <ClInclude Include="details\handshake.hpp" />
     <ClInclude Include="details\http.hpp" />
     <ClInclude Include="details\http_parser.hpp" />
