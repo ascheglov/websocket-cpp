@@ -8,7 +8,7 @@
 
 namespace websocket
 {
-    enum Opcode
+    enum class Opcode
     {
         Continuation = 0,
         Text = 1,

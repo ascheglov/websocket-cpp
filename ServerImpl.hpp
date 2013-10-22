@@ -22,7 +22,7 @@ namespace websocket
     class ConnectionTable
     {
     public:
-        Connection& add(boost::asio::ip::tcp::socket& socket)
+        Connection& add(boost::asio::ip::tcp::socket&& socket)
         {
             ++m_lastConnId;
             auto&& pair = m_connections.emplace(m_lastConnId, std::make_unique<Connection>(m_lastConnId, std::move(socket)));
@@ -50,6 +50,52 @@ namespace websocket
         ConnectionId m_lastConnId{0};
         std::unordered_map<ConnectionId, std::unique_ptr<Connection>> m_connections;
     };
+
+    inline std::string makeFrame(Opcode opcode, std::string data)
+    {
+        std::string frame;
+        
+        const auto FinalFragmentFlag = 0x80;
+        frame.push_back(FinalFragmentFlag | static_cast<char>(opcode));
+
+        auto n = data.size();
+        if (n <= 125)
+        {
+            frame.reserve(2 + n);
+            frame.push_back((char)n);
+        }
+        else if (n <= 0xFFFF)
+        {
+            frame.reserve(1 + 2 + n);
+
+            frame.push_back(126);
+
+            frame.push_back((n >> 8) & 0xFF);
+            frame.push_back(n & 0xFF);
+        }
+        else if (n <= 0xFFffFFff)
+        {
+            frame.reserve(1 + 8 + n);
+
+            frame.push_back(127);
+
+            frame.push_back(0);
+            frame.push_back(0);
+            frame.push_back(0);
+            frame.push_back(0);
+            frame.push_back((n >> 8 * 3) & 0xFF);
+            frame.push_back((n >> 8 * 2) & 0xFF);
+            frame.push_back((n >> 8 * 1) & 0xFF);
+            frame.push_back(n & 0xFF);
+        }
+        else
+        {
+            throw std::length_error("websocket message is too long");
+        }
+
+        frame.append(data);
+        return frame;
+    }
 
     class ServerImpl
     {
@@ -89,8 +135,8 @@ namespace websocket
         {
             enqueue([=]
             {
-                if (auto conn = find(connId))
-                    send(*conn, message, isBinary);
+                if (auto conn = m_connTable.find(connId))
+                    sendFrame(*conn, isBinary ? Opcode::Binary : Opcode::Text, message);
             });
         }
 
@@ -98,7 +144,7 @@ namespace websocket
         {
             enqueue([=]
             {
-                if (auto conn = find(connId))
+                if (auto conn = m_connTable.find(connId))
                     dropImpl(*conn);
             });
         }
@@ -137,7 +183,9 @@ namespace websocket
                 {
                     if (performHandshake(clientSocket, yield))
                     {
-                        createNewConnection(clientSocket);
+                        auto& conn = m_connTable.add(std::move(clientSocket));
+                        beginRecvFrame(conn);
+                        m_callback(Event::NewConnection, conn.m_id, "");
                     }
                 }
                 else
@@ -148,13 +196,6 @@ namespace websocket
                     log("accept error: ", ec);
                 }
             }
-        }
-
-        void createNewConnection(boost::asio::ip::tcp::socket& socket)
-        {
-            auto& conn = m_connTable.add(socket);
-            beginRecvFrame(conn);
-            m_callback(Event::NewConnection, conn.m_id, "");
         }
 
         bool performHandshake(boost::asio::ip::tcp::socket& socket, boost::asio::yield_context& yield)
@@ -189,51 +230,10 @@ namespace websocket
             return true;
         }
 
-        void send(Connection& conn, const std::string& message, bool isBinary)
-        {
-            std::string frame;
-            frame.reserve(2 + message.size());
-            frame.push_back(isBinary ? 0x82 : 0x81);
-
-            auto n = message.size();
-            if (message.size() <= 125)
-            {
-                frame.push_back((char)n);
-            }
-            else if (message.size() <= 0xFFFF)
-            {
-                frame.push_back(126);
-                frame.push_back((n >> 8) & 0xFF);
-                frame.push_back(n & 0xFF);
-            }
-            else if (message.size() <= 0xFFffFFff)
-            {
-                frame.push_back(127);
-
-                frame.push_back(0);
-                frame.push_back(0);
-                frame.push_back(0);
-                frame.push_back(0);
-                frame.push_back((n >> 8 * 3) & 0xFF);
-                frame.push_back((n >> 8 * 2) & 0xFF);
-                frame.push_back((n >> 8 * 1) & 0xFF);
-                frame.push_back(n & 0xFF);
-            }
-            else
-            {
-                throw std::length_error("websocket message is too long");
-            }
-
-            for (auto c : message)
-                frame.push_back(c);
-
-            sendFrame(conn, std::move(frame));
-        }
-
-        void sendFrame(Connection& conn, std::string frame)
+        void sendFrame(Connection& conn, Opcode opcode, std::string data)
         {
             assert(std::this_thread::get_id() == m_workerThread->get_id());
-            conn.m_sendQueue.push_back(std::move(frame));
+            conn.m_sendQueue.push_back(makeFrame(opcode, data));
             if (conn.m_sendQueue.size() == 1)
                 sendNext(conn);
         }
@@ -245,7 +245,7 @@ namespace websocket
             boost::asio::async_write(conn.m_socket, boost::asio::buffer(conn.m_sendQueue.front()),
                 [this, id](const boost::system::error_code& ec, std::size_t)
             {
-                if (auto conn = find(id))
+                if (auto conn = m_connTable.find(id))
                     onSendComplete(*conn, ec);
             });
         }
@@ -276,7 +276,7 @@ namespace websocket
             conn.beginRecvFrame(
                 [this, id](const boost::system::error_code& ec, std::size_t bytesTransferred)
             {
-                if (auto connPtr = find(id))
+                if (auto connPtr = m_connTable.find(id))
                     onRecvComplete(*connPtr, ec, bytesTransferred);
             });
         }
@@ -296,7 +296,7 @@ namespace websocket
                 {
                     if (conn.m_receiver.opcode() == Opcode::Close)
                     {
-                        sendFrame(conn, {"\x88\x00", 2});
+                        sendFrame(conn, Opcode::Close, {});
                     }
                     else
                     {
@@ -342,11 +342,6 @@ namespace websocket
                 m_connTable.erase(conn);
         }
 
-        Connection* find(ConnectionId connId)
-        {
-            return m_connTable.find(connId);
-        }
-
         template<typename... Ts>
         void log(Ts&&... t)
         {
@@ -367,7 +362,5 @@ namespace websocket
         ConnectionTable m_connTable;
 
         std::function<void(Event, ConnectionId, std::string)> m_callback;
-
-        std::unique_ptr<Connection> m_newConnection;
     };
 }
