@@ -108,8 +108,9 @@ exit 0</Command>
     <ClInclude Include="details\sha1.hpp" />
     <ClInclude Include="ServerImpl.hpp" />
     <ClInclude Include="server_fwd.hpp" />
+    <ClInclude Include="server_src.hpp" />
     <ClInclude Include="tests\catch_wrap.hpp" />
-    <ClInclude Include="websocket-cpp.hpp" />
+    <ClInclude Include="Server.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="docs\rfc2616.txt" />

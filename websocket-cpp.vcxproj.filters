@@ -46,9 +46,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="websocket-cpp.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="details\Acceptor.hpp">
       <Filter>Header Files\details</Filter>
     </ClInclude>
@@ -80,6 +77,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ServerImpl.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Server.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="server_src.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
