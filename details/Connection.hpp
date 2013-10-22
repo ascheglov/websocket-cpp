@@ -16,7 +16,7 @@ namespace websocket
     {
         Connection(ConnectionId id, boost::asio::ip::tcp::socket socket)
             : m_id{id}
-        , m_socket{std::move(socket)}
+            , m_socket{std::move(socket)}
         {}
 
         void close()
@@ -53,5 +53,37 @@ namespace websocket
         bool m_isSending{false};
         bool m_isReading{false};
         bool m_isClosed{false};
+    };
+
+    class ConnectionTable
+    {
+    public:
+        Connection& add(boost::asio::ip::tcp::socket&& socket)
+        {
+            ++m_lastConnId;
+            auto&& pair = m_connections.emplace(m_lastConnId, std::make_unique<Connection>(m_lastConnId, std::move(socket)));
+            return *pair.first->second;
+        }
+
+        Connection* find(ConnectionId connId)
+        {
+            auto iter = m_connections.find(connId);
+            return iter == m_connections.end() ? nullptr : iter->second.get();
+        }
+
+        void erase(Connection& connection)
+        {
+            m_connections.erase(connection.m_id);
+        }
+
+        void closeAll()
+        {
+            for (auto&& conn : m_connections)
+                conn.second->close();
+        }
+
+    private:
+        ConnectionId m_lastConnId{0};
+        std::unordered_map<ConnectionId, std::unique_ptr<Connection>> m_connections;
     };
 }

@@ -19,38 +19,6 @@
 
 namespace websocket
 {
-    class ConnectionTable
-    {
-    public:
-        Connection& add(boost::asio::ip::tcp::socket&& socket)
-        {
-            ++m_lastConnId;
-            auto&& pair = m_connections.emplace(m_lastConnId, std::make_unique<Connection>(m_lastConnId, std::move(socket)));
-            return *pair.first->second;
-        }
-
-        Connection* find(ConnectionId connId)
-        {
-            auto iter = m_connections.find(connId);
-            return iter == m_connections.end() ? nullptr : iter->second.get();
-        }
-
-        void erase(Connection& connection)
-        {
-            m_connections.erase(connection.m_id);
-        }
-
-        void closeAll()
-        {
-            for (auto&& conn : m_connections)
-                conn.second->close();
-        }
-
-    private:
-        ConnectionId m_lastConnId{0};
-        std::unordered_map<ConnectionId, std::unique_ptr<Connection>> m_connections;
-    };
-
     inline std::string makeFrame(Opcode opcode, std::string data)
     {
         std::string frame;
