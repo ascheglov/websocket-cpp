@@ -19,6 +19,38 @@
 
 namespace websocket
 {
+    class ConnectionTable
+    {
+    public:
+        Connection& add(boost::asio::ip::tcp::socket& socket)
+        {
+            ++m_lastConnId;
+            auto&& pair = m_connections.emplace(m_lastConnId, std::make_unique<Connection>(m_lastConnId, std::move(socket)));
+            return *pair.first->second;
+        }
+
+        Connection* find(ConnectionId connId)
+        {
+            auto iter = m_connections.find(connId);
+            return iter == m_connections.end() ? nullptr : iter->second.get();
+        }
+
+        void erase(Connection& connection)
+        {
+            m_connections.erase(connection.m_id);
+        }
+
+        void closeAll()
+        {
+            for (auto&& conn : m_connections)
+                conn.second->close();
+        }
+
+    private:
+        ConnectionId m_lastConnId{0};
+        std::unordered_map<ConnectionId, std::unique_ptr<Connection>> m_connections;
+    };
+
     class ServerImpl
     {
     public:
@@ -47,8 +79,7 @@ namespace websocket
             boost::system::error_code ingnoreError;
             m_acceptor.close(ingnoreError);
 
-            for (auto&& conn : m_connections)
-                conn.second->close();
+            m_connTable.closeAll();
 
             enqueue([]{}); // JIC, wake up queue
             m_workerThread->join();
@@ -65,7 +96,11 @@ namespace websocket
 
         void drop(ConnectionId connId)
         {
-            enqueue([=]{ dropImpl(connId); });
+            enqueue([=]
+            {
+                if (auto conn = find(connId))
+                    dropImpl(*conn);
+            });
         }
 
     private:
@@ -101,7 +136,9 @@ namespace websocket
                 if (!ec)
                 {
                     if (performHandshake(clientSocket, yield))
+                    {
                         createNewConnection(clientSocket);
+                    }
                 }
                 else
                 {
@@ -115,10 +152,9 @@ namespace websocket
 
         void createNewConnection(boost::asio::ip::tcp::socket& socket)
         {
-            ++m_lastConnId;
-            m_connections[m_lastConnId] = std::make_unique<Connection>(m_lastConnId, std::move(socket));
-            beginRecvFrame(*m_connections[m_lastConnId]);
-            m_callback(Event::NewConnection, m_lastConnId, "");
+            auto& conn = m_connTable.add(socket);
+            beginRecvFrame(conn);
+            m_callback(Event::NewConnection, conn.m_id, "");
         }
 
         bool performHandshake(boost::asio::ip::tcp::socket& socket, boost::asio::yield_context& yield)
@@ -231,7 +267,7 @@ namespace websocket
                 return;
             }
 
-            dropImpl(conn.m_id);
+            dropImpl(conn);
         }
 
         void beginRecvFrame(Connection& conn)
@@ -276,7 +312,7 @@ namespace websocket
                 }
             }
 
-            dropImpl(conn.m_id);
+            dropImpl(conn);
         }
 
         void processMessage(ConnectionId id, FrameReceiver& receiver)
@@ -294,27 +330,21 @@ namespace websocket
             }
         }
 
-        void dropImpl(ConnectionId connId)
+        void dropImpl(Connection& conn)
         {
-            auto iter = m_connections.find(connId);
-            if (iter == m_connections.end())
-                return;
-
-            auto& conn = *iter->second;
             if (!conn.m_isClosed)
             {
                 conn.close();
-                m_callback(Event::Disconnect, connId, "");
+                m_callback(Event::Disconnect, conn.m_id, "");
             }
 
             if (!conn.m_isReading && !conn.m_isSending)
-                m_connections.erase(iter);
+                m_connTable.erase(conn);
         }
 
         Connection* find(ConnectionId connId)
         {
-            auto iter = m_connections.find(connId);
-            return iter == m_connections.end() ? nullptr : iter->second.get();
+            return m_connTable.find(connId);
         }
 
         template<typename... Ts>
@@ -334,8 +364,7 @@ namespace websocket
 
         std::unique_ptr<std::thread> m_workerThread;
 
-        ConnectionId m_lastConnId{0};
-        std::unordered_map<ConnectionId, std::unique_ptr<Connection>> m_connections;
+        ConnectionTable m_connTable;
 
         std::function<void(Event, ConnectionId, std::string)> m_callback;
 
