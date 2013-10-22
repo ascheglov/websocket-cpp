@@ -24,7 +24,8 @@ namespace websocket
             m_queue.emplace_back(event, connId, std::move(message));
         };
 
-        m_impl = std::make_unique<ServerImpl>(ip, port, log, callback);
+        boost::asio::ip::tcp::endpoint endpoint{boost::asio::ip::address_v4::from_string(ip), port};
+        m_impl = std::make_unique<ServerImpl>(endpoint, log, callback);
     }
     void Server::stop() { m_impl->stop(); }
     void Server::sendText(ConnectionId connId, std::string message) { m_impl->send(connId, std::move(message), false); }

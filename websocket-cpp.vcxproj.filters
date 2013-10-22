@@ -46,9 +46,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="details\Acceptor.hpp">
-      <Filter>Header Files\details</Filter>
-    </ClInclude>
     <ClInclude Include="details\base64.hpp">
       <Filter>Header Files\details</Filter>
     </ClInclude>

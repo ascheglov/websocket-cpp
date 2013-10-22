@@ -98,7 +98,6 @@ exit 0</Command>
     <ClCompile Include="websocket-cpp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="details\Acceptor.hpp" />
     <ClInclude Include="details\base64.hpp" />
     <ClInclude Include="details\Connection.hpp" />
     <ClInclude Include="details\FrameReceiver.hpp" />

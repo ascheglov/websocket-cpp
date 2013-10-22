@@ -11,8 +11,8 @@
 #include <thread>
 #include <unordered_map>
 #include <boost/asio.hpp>
+#include <boost/asio/spawn.hpp>
 
-#include "details/Acceptor.hpp"
 #include "details/Connection.hpp"
 #include "details/handshake.hpp"
 #include "server_fwd.hpp"
@@ -23,14 +23,13 @@ namespace websocket
     {
     public:
         template<typename Callback>
-        ServerImpl(const std::string& ip, unsigned short port,
+        ServerImpl(boost::asio::ip::tcp::endpoint endpoint,
             std::ostream& log, Callback&& callback)
             : m_log(log)
+            , m_acceptor{m_ioService, endpoint}
             , m_callback(callback)
         {
-            m_acceptor = std::make_unique<Acceptor>(
-                m_ioService, ip, port, log,
-                [this](boost::asio::ip::tcp::socket&& s){ onAccept(std::move(s)); });
+            boost::asio::spawn(m_ioService, [this](boost::asio::yield_context yield) { acceptLoop(yield); });
 
             m_workerThread.reset(new std::thread{[this]{ workerThread(); }});
         }
@@ -45,7 +44,8 @@ namespace websocket
         {
             m_isStopped = true;
 
-            m_acceptor->stop();
+            boost::system::error_code ingnoreError;
+            m_acceptor.close(ingnoreError);
 
             for (auto&& conn : m_connections)
                 conn.second->close();
@@ -90,31 +90,42 @@ namespace websocket
             m_ioService.post(std::forward<F>(f));
         }
 
-        void onAccept(boost::asio::ip::tcp::socket socket)
+        void acceptLoop(boost::asio::yield_context& yield)
         {
-            if (!performHandshake(socket))
-                return;
+            for (;;)
+            {
+                boost::asio::ip::tcp::socket clientSocket{m_ioService};
+                boost::system::error_code ec;
+                m_acceptor.async_accept(clientSocket, yield[ec]);
 
-            assert(!m_newConnection);
+                if (!ec)
+                {
+                    if (performHandshake(clientSocket, yield))
+                        createNewConnection(clientSocket);
+                }
+                else
+                {
+                    if (m_isStopped)
+                        return;
+
+                    m_log << "accept error: " << ec << '\n';
+                }
+            }
+        }
+
+        void createNewConnection(boost::asio::ip::tcp::socket& socket)
+        {
             ++m_lastConnId;
-            m_newConnection = std::make_unique<Connection>(m_lastConnId, std::move(socket));
-
-            enqueue([this]{ onHandshakeComplete(); });
+            m_connections[m_lastConnId] = std::make_unique<Connection>(m_lastConnId, std::move(socket));
+            beginRecvFrame(*m_connections[m_lastConnId]);
+            m_callback(Event::NewConnection, m_lastConnId, "");
         }
 
-        void onHandshakeComplete()
-        {
-            auto id = m_newConnection->m_id;
-            m_connections[id] = std::move(m_newConnection);
-            beginRecvFrame(*m_connections[id]);
-            m_callback(Event::NewConnection, id, "");
-        }
-
-        bool performHandshake(boost::asio::ip::tcp::socket& socket)
+        bool performHandshake(boost::asio::ip::tcp::socket& socket, boost::asio::yield_context& yield)
         {
             boost::system::error_code ec;
             boost::asio::streambuf buf;
-            boost::asio::read_until(socket, buf, "\r\n\r\n", ec);
+            boost::asio::async_read_until(socket, buf, "\r\n\r\n", yield[ec]);
             if (ec)
             {
                 m_log << "Handshake: read error: " << ec << "\n";
@@ -125,7 +136,7 @@ namespace websocket
             std::ostringstream replyStream;
             auto status = handshake(requestStream, replyStream);
 
-            boost::asio::write(socket, boost::asio::buffer(replyStream.str()), ec);
+            boost::asio::async_write(socket, boost::asio::buffer(replyStream.str()), yield[ec]);
 
             if (status != http::Status::OK)
             {
@@ -319,7 +330,7 @@ namespace websocket
 
         boost::asio::io_service m_ioService;
 
-        std::unique_ptr<Acceptor> m_acceptor;
+        boost::asio::ip::tcp::acceptor m_acceptor;
 
         std::unique_ptr<std::thread> m_workerThread;
 
