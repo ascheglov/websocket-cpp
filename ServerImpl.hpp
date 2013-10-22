@@ -70,10 +70,45 @@ namespace websocket
             });
         }
 
-    private:
+    public: // methods visible to Connection
         using conn_t = Connection<ServerImpl>;
-        friend struct conn_t;
 
+        void processMessage(ConnectionId id, FrameReceiver& receiver)
+        {
+            auto opcode = receiver.opcode();
+
+            if (opcode == Opcode::Text || opcode == Opcode::Binary)
+            {
+                receiver.unmask();
+                m_callback(Event::Message, id, receiver.message());
+            }
+            else
+            {
+                log("#", id, ": WARNING: unknown opcode ", (int)opcode);
+            }
+        }
+
+        void dropImpl(conn_t& conn)
+        {
+            if (!conn.m_isClosed)
+            {
+                conn.close();
+                m_callback(Event::Disconnect, conn.m_id, "");
+            }
+
+            if (!conn.m_isReading && !conn.m_isSending)
+                m_connTable.erase(conn);
+        }
+
+        template<typename... Ts>
+        void log(Ts&&... t)
+        {
+            int h[]{(m_log << t, 0)...};
+            (void)h;
+            m_log << std::endl;
+        }
+
+    private:
         void workerThread()
         {
             while (!m_isStopped)
@@ -152,41 +187,6 @@ namespace websocket
             }
 
             return true;
-        }
-
-        void processMessage(ConnectionId id, FrameReceiver& receiver)
-        {
-            auto opcode = receiver.opcode();
-
-            if (opcode == Opcode::Text || opcode == Opcode::Binary)
-            {
-                receiver.unmask();
-                m_callback(Event::Message, id, receiver.message());
-            }
-            else
-            {
-                log("#", id, ": WARNING: unknown opcode ", (int)opcode);
-            }
-        }
-
-        void dropImpl(conn_t& conn)
-        {
-            if (!conn.m_isClosed)
-            {
-                conn.close();
-                m_callback(Event::Disconnect, conn.m_id, "");
-            }
-
-            if (!conn.m_isReading && !conn.m_isSending)
-                m_connTable.erase(conn);
-        }
-
-        template<typename... Ts>
-        void log(Ts&&... t)
-        {
-            int h[]{(m_log << t, 0)...};
-            (void)h;
-            m_log << std::endl;
         }
 
         std::atomic<bool> m_isStopped{false};

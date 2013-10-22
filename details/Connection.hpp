@@ -13,14 +13,20 @@
 namespace websocket
 {
     template<typename Callback>
-    struct Connection
+    class Connection
     {
+    public:
         Connection(ConnectionId id, boost::asio::ip::tcp::socket socket, Callback& callback)
             : m_id{id}
             , m_socket{std::move(socket)}
             , m_callback(callback)
         {
             beginRecvFrame();
+        }
+
+        ~Connection()
+        {
+            assert(m_isClosed);
         }
 
         void close()
@@ -33,6 +39,43 @@ namespace websocket
             m_socket.cancel(ignoreError);
             m_socket.shutdown(boost::asio::socket_base::shutdown_both, ignoreError);
             m_socket.close(ignoreError);
+        }
+
+        void sendFrame(Opcode opcode, std::string data)
+        {
+            m_sendQueue.push_back(makeFrame(opcode, data));
+            if (m_sendQueue.size() == 1)
+                sendNext();
+        }
+
+    private:
+        void sendNext()
+        {
+            m_isSending = true;
+            boost::asio::async_write(m_socket, boost::asio::buffer(m_sendQueue.front()),
+                [this](const boost::system::error_code& ec, std::size_t)
+                {
+                    onSendComplete(ec);
+                });
+        }
+
+        void onSendComplete(const boost::system::error_code& ec)
+        {
+            m_isSending = false;
+            if (ec)
+            {
+                m_callback.log("#", m_id, ": send error: ", ec);
+            }
+            else if (!m_isClosed)
+            {
+                m_sendQueue.pop_front();
+                if (!m_sendQueue.empty())
+                    sendNext();
+
+                return;
+            }
+
+            m_callback.dropImpl(*this);
         }
 
         void beginRecvFrame()
@@ -86,50 +129,17 @@ namespace websocket
             m_callback.dropImpl(*this);
         }
 
-        void sendFrame(Opcode opcode, std::string data)
-        {
-            m_sendQueue.push_back(makeFrame(opcode, data));
-            if (m_sendQueue.size() == 1)
-                sendNext();
-        }
-
-        void sendNext()
-        {
-            m_isSending = true;
-            boost::asio::async_write(m_socket, boost::asio::buffer(m_sendQueue.front()),
-                [this](const boost::system::error_code& ec, std::size_t)
-                {
-                    onSendComplete(ec);
-                });
-        }
-
-        void onSendComplete(const boost::system::error_code& ec)
-        {
-            m_isSending = false;
-            if (ec)
-            {
-                m_callback.log("#", m_id, ": send error: ", ec);
-            }
-            else if (!m_isClosed)
-            {
-                m_sendQueue.pop_front();
-                if (!m_sendQueue.empty())
-                    sendNext();
-
-                return;
-            }
-
-            m_callback.dropImpl(*this);
-        }
-
+    public:
         ConnectionId m_id;
+        bool m_isSending{false};
+        bool m_isReading{false};
+        bool m_isClosed{false};
+        
+    private:
         boost::asio::ip::tcp::socket m_socket;
         std::deque<std::string> m_sendQueue;
         FrameReceiver m_receiver;
         Callback& m_callback;
-        bool m_isSending{false};
-        bool m_isReading{false};
-        bool m_isClosed{false};
     };
 
     template<typename Callback>
