@@ -79,7 +79,7 @@ namespace websocket
                 }
                 catch (std::exception& e)
                 {
-                    m_log << "ERROR: " << e.what() << std::endl;
+                    log("ERROR: ", e.what());
                 }
             }
         }
@@ -108,7 +108,7 @@ namespace websocket
                     if (m_isStopped)
                         return;
 
-                    m_log << "accept error: " << ec << '\n';
+                    log("accept error: ", ec);
                 }
             }
         }
@@ -128,7 +128,7 @@ namespace websocket
             boost::asio::async_read_until(socket, buf, "\r\n\r\n", yield[ec]);
             if (ec)
             {
-                m_log << "Handshake: read error: " << ec << "\n";
+                log("Handshake: read error: ", ec);
                 return false;
             }
 
@@ -140,13 +140,13 @@ namespace websocket
 
             if (status != http::Status::OK)
             {
-                m_log << "Handshake: error " << (int)status << "\n";
+                log("Handshake: error ", (int)status);
                 return false;
             }
 
             if (ec)
             {
-                m_log << "Handshake: write error: " << ec << "\n";
+                log("Handshake: write error: ", ec);
                 return false;
             }
 
