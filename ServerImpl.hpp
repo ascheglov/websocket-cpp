@@ -240,13 +240,11 @@ namespace websocket
 
         void sendNext(Connection& conn)
         {
-            auto id = conn.m_id;
             conn.m_isSending = true;
             boost::asio::async_write(conn.m_socket, boost::asio::buffer(conn.m_sendQueue.front()),
-                [this, id](const boost::system::error_code& ec, std::size_t)
+                [this, &conn](const boost::system::error_code& ec, std::size_t)
             {
-                if (auto conn = m_connTable.find(id))
-                    onSendComplete(*conn, ec);
+                onSendComplete(conn, ec);
             });
         }
 
@@ -272,12 +270,10 @@ namespace websocket
 
         void beginRecvFrame(Connection& conn)
         {
-            auto id = conn.m_id;
             conn.beginRecvFrame(
-                [this, id](const boost::system::error_code& ec, std::size_t bytesTransferred)
+                [this, &conn](const boost::system::error_code& ec, std::size_t bytesTransferred)
             {
-                if (auto connPtr = m_connTable.find(id))
-                    onRecvComplete(*connPtr, ec, bytesTransferred);
+                onRecvComplete(conn, ec, bytesTransferred);
             });
         }
 
