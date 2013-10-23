@@ -11,6 +11,4 @@ namespace websocket
     // 1.36 years at 100 new connections per second
 
     enum class Event { NewConnection, Message, Disconnect };
-
-    class ServerImpl;
 }

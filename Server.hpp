@@ -30,8 +30,10 @@ namespace websocket
         void drop(ConnectionId connId);
 
     private:
+        class Impl;
+        std::unique_ptr<Impl> m_impl;
+
         using tuple_t = std::tuple<Event, ConnectionId, std::string>;
-        std::unique_ptr<ServerImpl> m_impl;
         std::deque<tuple_t> m_queue;
         std::mutex m_mutex;
     };

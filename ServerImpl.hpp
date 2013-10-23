@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <atomic>
 #include <functional>
 #include <memory>
 #include <ostream>
@@ -73,7 +72,7 @@ namespace websocket
 
         conn_t* find(ConnectionId id) { return m_connTable.find(id);  }
 
-        void closeAll()
+        void stop()
         {
             m_connTable.closeAll();
         }
@@ -118,21 +117,65 @@ namespace websocket
         ConnectionTable<ServerLogic> m_connTable;
     };
 
-    class ServerImpl
+    template<class Callback>
+    class Acceptor
+    {
+    public:
+        Acceptor(boost::asio::io_service& ioService, boost::asio::ip::tcp::endpoint endpoint, Callback& callback)
+            : m_acceptor{ioService, endpoint}
+            , m_callback{callback}
+        {
+            boost::asio::spawn(ioService, [this](boost::asio::yield_context yield) { acceptLoop(yield); });
+        }
+
+        void stop()
+        {
+            m_isStopped = true;
+            boost::system::error_code ingnoreError;
+            m_acceptor.close(ingnoreError);
+        }
+
+    private:
+        void acceptLoop(boost::asio::yield_context& yield)
+        {
+            for (;;)
+            {
+                boost::asio::ip::tcp::socket clientSocket{m_acceptor.get_io_service()};
+                boost::system::error_code ec;
+                m_acceptor.async_accept(clientSocket, yield[ec]);
+
+                if (m_isStopped)
+                    return;
+
+                if (!ec)
+                {
+                    m_callback.onAccept(clientSocket, yield);
+                }
+                else
+                {
+                    m_callback.log("accept error: ", ec);
+                }
+            }
+        }
+
+        bool m_isStopped{false};
+        boost::asio::ip::tcp::acceptor m_acceptor;
+        Callback& m_callback;
+    };
+
+    class Server::Impl
     {
     public:
         template<typename Callback>
-        ServerImpl(boost::asio::ip::tcp::endpoint endpoint,
+        Impl(boost::asio::ip::tcp::endpoint endpoint,
             std::ostream& log, Callback&& callback)
-            : m_acceptor{m_ioService, endpoint}
-            , m_logic{log, std::forward<Callback>(callback)}
+            : m_logic{log, std::forward<Callback>(callback)}
+            , m_acceptor{m_ioService, endpoint, m_logic}            
         {
-            boost::asio::spawn(m_ioService, [this](boost::asio::yield_context yield) { acceptLoop(yield); });
-
             m_workerThread.reset(new std::thread{[this]{ workerThread(); }});
         }
 
-        ~ServerImpl()
+        ~Impl()
         {
             if (!m_isStopped)
                 stop();
@@ -140,12 +183,12 @@ namespace websocket
 
         void stop()
         {
-            m_isStopped = true;
-
-            boost::system::error_code ingnoreError;
-            m_acceptor.close(ingnoreError);
-
-            m_logic.closeAll();
+            enqueue([this]
+            {
+                m_isStopped = true;
+                m_acceptor.stop();
+                m_logic.stop();
+            });
 
             m_workerThread->join();
         }
@@ -191,36 +234,12 @@ namespace websocket
             m_ioService.post(std::forward<F>(f));
         }
 
-        void acceptLoop(boost::asio::yield_context& yield)
-        {
-            for (;;)
-            {
-                boost::asio::ip::tcp::socket clientSocket{m_ioService};
-                boost::system::error_code ec;
-                m_acceptor.async_accept(clientSocket, yield[ec]);
-
-                if (m_isStopped)
-                    return;
-
-                if (!ec)
-                {
-                    m_logic.onAccept(clientSocket, yield);
-                }
-                else
-                {
-                    m_logic.log("accept error: ", ec);
-                }
-            }
-        }
-
-        std::atomic<bool> m_isStopped{false};
+        bool m_isStopped{false};
 
         boost::asio::io_service m_ioService;
-
-        boost::asio::ip::tcp::acceptor m_acceptor;
-
         std::unique_ptr<std::thread> m_workerThread;
 
         ServerLogic m_logic;
+        Acceptor<ServerLogic> m_acceptor;
     };
 }
