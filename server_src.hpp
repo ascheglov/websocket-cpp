@@ -5,13 +5,97 @@
 
 #include "Server.hpp"
 
+#include <memory>
 #include <mutex>
+#include <thread>
 #include <tuple>
+#include <ostream>
+#include <boost/asio.hpp>
 
-#include "ServerImpl.hpp"
+#include "details/Acceptor.hpp"
+#include "details/ServerLogic.hpp"
 
 namespace websocket
 {
+    class Server::Impl
+    {
+    public:
+        template<typename Callback>
+        Impl(boost::asio::ip::tcp::endpoint endpoint, std::ostream& log, Callback&& callback)
+            : m_logic{log, std::forward<Callback>(callback)}
+            , m_acceptor{m_ioService, endpoint, m_logic}
+        {
+            m_workerThread.reset(new std::thread{[this]{ workerThread(); }});
+        }
+
+        ~Impl()
+        {
+            if (!m_isStopped)
+                stop();
+        }
+
+        void stop()
+        {
+            enqueue([this]
+            {
+                m_isStopped = true;
+                m_acceptor.stop();
+                m_logic.stop();
+            });
+
+            m_workerThread->join();
+        }
+
+        void send(ConnectionId connId, std::string message, bool isBinary)
+        {
+            enqueue([=]
+            {
+                if (auto conn = m_logic.find(connId))
+                    conn->sendFrame(isBinary ? Opcode::Binary : Opcode::Text, message);
+            });
+        }
+
+        void drop(ConnectionId connId)
+        {
+            enqueue([=]
+            {
+                if (auto conn = m_logic.find(connId))
+                    m_logic.drop(*conn);
+            });
+        }
+
+    private:
+        void workerThread()
+        {
+            while (!m_isStopped)
+            {
+                try
+                {
+                    m_ioService.run();
+                    assert(m_isStopped);
+                }
+                catch (std::exception& e)
+                {
+                    m_logic.log("ERROR: ", e.what());
+                }
+            }
+        }
+
+        template<typename F>
+        void enqueue(F&& f)
+        {
+            m_ioService.post(std::forward<F>(f));
+        }
+
+        bool m_isStopped{false};
+
+        boost::asio::io_service m_ioService;
+        std::unique_ptr<std::thread> m_workerThread;
+
+        ServerLogic m_logic;
+        Acceptor<ServerLogic> m_acceptor;
+    };
+
     Server::Server() {}
     Server::~Server() {}
     void Server::start(const std::string& ip, unsigned short port, std::ostream& log)

@@ -3,8 +3,10 @@
 
 #pragma once
 
-#include <string>
 #include <deque>
+#include <memory>
+#include <string>
+#include <unordered_map>
 #include <boost/asio.hpp>
 
 #include "server_fwd.hpp"
