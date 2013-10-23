@@ -75,7 +75,7 @@ namespace websocket
                 return;
             }
 
-            m_callback.dropImpl(*this);
+            m_callback.drop(*this);
         }
 
         void beginRecvFrame()
@@ -114,7 +114,8 @@ namespace websocket
                     }
                     else
                     {
-                        m_callback.processMessage(m_id, m_receiver);
+                        m_receiver.unmask();
+                        m_callback.processFrame(m_id, m_receiver.opcode(), m_receiver.message());
                         m_receiver.shiftBuffer();
                         beginRecvFrame();
                         return;
@@ -126,7 +127,7 @@ namespace websocket
                 }
             }
 
-            m_callback.dropImpl(*this);
+            m_callback.drop(*this);
         }
 
     public:
