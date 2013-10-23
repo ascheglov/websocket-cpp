@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 namespace websocket
@@ -20,51 +21,62 @@ namespace websocket
         ReservedB, ReservedC, ReservedD, ReservedE, ReservedF,
     };
 
-    inline std::string makeFrame(Opcode opcode, std::string data)
+    struct ServerFrame
     {
-        std::string frame;
-
-        const auto FinalFragmentFlag = 0x80;
-        frame.push_back(FinalFragmentFlag | static_cast<char>(opcode));
-
-        auto n = data.size();
-        if (n <= 125)
+        ServerFrame(Opcode opcode, std::string data)
+            : m_data(std::move(data))
         {
-            frame.reserve(2 + n);
-            frame.push_back((char)n);
-        }
-        else if (n <= 0xFFFF)
-        {
-            frame.reserve(1 + 2 + n);
-
-            frame.push_back(126);
-
-            frame.push_back((n >> 8) & 0xFF);
-            frame.push_back(n & 0xFF);
-        }
-        else if (n <= 0xFFffFFff)
-        {
-            frame.reserve(1 + 8 + n);
-
-            frame.push_back(127);
-
-            frame.push_back(0);
-            frame.push_back(0);
-            frame.push_back(0);
-            frame.push_back(0);
-            frame.push_back((n >> 8 * 3) & 0xFF);
-            frame.push_back((n >> 8 * 2) & 0xFF);
-            frame.push_back((n >> 8 * 1) & 0xFF);
-            frame.push_back(n & 0xFF);
-        }
-        else
-        {
-            throw std::length_error("websocket message is too long");
+            writeOpcode(opcode);
+            writeLen();
         }
 
-        frame.append(data);
-        return frame;
-    }
+        std::uint8_t m_header[1 + 1 + 8];
+        std::uint8_t m_headerLen;
+        std::string m_data;
+
+    private:
+        void writeOpcode(Opcode op)
+        {
+            const auto FinalFragmentFlag = 0x80;
+            m_header[0] = FinalFragmentFlag | static_cast<std::uint8_t>(op);
+        }
+
+        void writeLen()
+        {
+            auto n = m_data.size();
+            if (n <= 125)
+            {
+                m_headerLen = 1 + 1;
+                m_header[1] = static_cast<std::uint8_t>(n);
+            }
+            else if (n <= 0xFFFF)
+            {
+                m_headerLen = 1 + 1 + 2;
+                m_header[1] = 126;
+
+                m_header[2] = (n >> 8) & 0xFF;
+                m_header[3] = n & 0xFF;
+            }
+            else if (n <= 0xFFffFFff)
+            {
+                m_headerLen = 1 + 1 + 8;
+                m_header[1] = 127;
+
+                m_header[2] = 0;
+                m_header[3] = 0;
+                m_header[4] = 0;
+                m_header[5] = 0;
+                m_header[6] = (n >> 8 * 3) & 0xFF;
+                m_header[7] = (n >> 8 * 2) & 0xFF;
+                m_header[8] = (n >> 8 * 1) & 0xFF;
+                m_header[9] = n & 0xFF;
+            }
+            else
+            {
+                throw std::length_error("websocket message is too long");
+            }
+        }
+    };
 
     class FrameReceiver
     {

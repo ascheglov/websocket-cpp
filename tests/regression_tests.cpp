@@ -178,24 +178,6 @@ TEST_CASE_METHOD(WebsocketTestsFixture, "Server message", "[websocket][slow]")
     REQUIRE(client.recvFrame() == "\x81\x04test");
 }
 
-TEST_CASE_METHOD(WebsocketTestsFixture, "Long server messages", "[websocket][slow]")
-{
-    Client client;
-    waitServerEvent(websocket::Event::NewConnection);
-
-    auto test = [&](int msgLen, const std::string& expectedFrameHeader)
-    {
-        std::string msg(msgLen, 'x');
-        server.sendText(1, msg);
-        auto actualFrame = client.recvFrame();
-        return actualFrame == expectedFrameHeader + msg;
-    };
-
-    REQUIRE(test(125, "\x81\x7d"));
-    REQUIRE(test(126, str("\x81\x7e\x00\x7e")));
-    REQUIRE(test(0x10000, str("\x81\x7f" "\x00\x00\x00\x00" "\x00\x01\x00\x00")));
-}
-
 TEST_CASE_METHOD(WebsocketTestsFixture, "Client closes socket", "[websocket][slow]")
 {
     {

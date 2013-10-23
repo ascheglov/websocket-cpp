@@ -75,3 +75,25 @@ TEST_CASE_METHOD(FrameReceiverFixture, "unmask", "[websocket]")
     receiver.unmask();
     REQUIRE(receiver.message() == "01234");
 }
+
+TEST_CASE("ServerFrame construction", "[websocket]")
+{
+    auto&& test = [](unsigned dataLen, unsigned expectedHeaderLen, const char* expectedHeader)
+    {
+        std::string data(dataLen, 'x');
+        websocket::ServerFrame frame{websocket::Opcode::Text, data};
+        REQUIRE(frame.m_headerLen == expectedHeaderLen);
+        REQUIRE(std::memcmp(frame.m_header, expectedHeader, frame.m_headerLen) == 0);
+        REQUIRE(frame.m_data == data);
+    };
+
+    test(3, 2, "\x81\x03");
+    test(125, 2, "\x81\x7d");
+
+    test(126, 4, "\x81\x7e\x00\x7e");
+    test(0xAABB, 4, "\x81\x7e\xaa\xbb");
+    test(0xFFFF, 4, "\x81\x7e\xff\xff");
+
+    test(0x10000, 10, "\x81\x7f\x00\x00\x00\x00\x00\x01\x00\x00");
+    test(0x100ff, 10, "\x81\x7f\x00\x00\x00\x00\x00\x01\x00\xff");
+}

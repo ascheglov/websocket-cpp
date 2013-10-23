@@ -43,7 +43,7 @@ namespace websocket
 
         void sendFrame(Opcode opcode, std::string data)
         {
-            m_sendQueue.push_back(makeFrame(opcode, data));
+            m_sendQueue.emplace_back(opcode, std::move(data));
             if (m_sendQueue.size() == 1)
                 sendNext();
         }
@@ -52,7 +52,15 @@ namespace websocket
         void sendNext()
         {
             m_isSending = true;
-            boost::asio::async_write(m_socket, boost::asio::buffer(m_sendQueue.front()),
+            
+            auto&& frame = m_sendQueue.front();
+            std::array<boost::asio::const_buffer, 2> buffers
+            {
+                boost::asio::buffer(frame.m_header, frame.m_headerLen),
+                boost::asio::buffer(frame.m_data)
+            };
+
+            boost::asio::async_write(m_socket, buffers,
                 [this](const boost::system::error_code& ec, std::size_t)
                 {
                     onSendComplete(ec);
@@ -138,7 +146,7 @@ namespace websocket
         
     private:
         boost::asio::ip::tcp::socket m_socket;
-        std::deque<std::string> m_sendQueue;
+        std::deque<ServerFrame> m_sendQueue;
         FrameReceiver m_receiver;
         Callback& m_callback;
     };
