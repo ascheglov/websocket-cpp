@@ -12,7 +12,7 @@
 #include "handshake.hpp"
 #include "server_fwd.hpp"
 
-namespace websocket
+namespace websocket { namespace details
 {
     class ServerLogic
     {
@@ -112,4 +112,4 @@ namespace websocket
         std::function<void(Event, ConnectionId, std::string)> m_callback;
         ConnectionTable<ServerLogic> m_connTable;
     };
-}
+}}

@@ -2,11 +2,13 @@
 
 #include "catch_wrap.hpp"
 
+namespace ws_details = websocket::details;
+
 namespace
 {
     struct FrameReceiverFixture
     {
-        websocket::FrameReceiver receiver;
+        ws_details::FrameReceiver receiver;
 
         template<std::size_t N>
         std::size_t write(const char(&data)[N])
@@ -60,7 +62,7 @@ TEST_CASE_METHOD(FrameReceiverFixture, "too long", "[websocket]")
 TEST_CASE_METHOD(FrameReceiverFixture, "parse opcode", "[websocket]")
 {
     receiver.addBytes(write("\x81\x80KKKK"));
-    REQUIRE(receiver.opcode() == websocket::Opcode::Text);
+    REQUIRE(receiver.opcode() == ws_details::Opcode::Text);
 }
 
 TEST_CASE_METHOD(FrameReceiverFixture, "parse length", "[websocket]")
@@ -81,7 +83,7 @@ TEST_CASE("ServerFrame construction", "[websocket]")
     auto&& test = [](unsigned dataLen, unsigned expectedHeaderLen, const char* expectedHeader)
     {
         std::string data(dataLen, 'x');
-        websocket::ServerFrame frame{websocket::Opcode::Text, data};
+        ws_details::ServerFrame frame{ws_details::Opcode::Text, data};
         REQUIRE(frame.m_headerLen == expectedHeaderLen);
         REQUIRE(std::memcmp(frame.m_header, expectedHeader, frame.m_headerLen) == 0);
         REQUIRE(frame.m_data == data);

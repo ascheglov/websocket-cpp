@@ -6,7 +6,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/spawn.hpp>
 
-namespace websocket
+namespace websocket { namespace details
 {
     template<class Callback>
     class Acceptor
@@ -53,4 +53,4 @@ namespace websocket
         boost::asio::ip::tcp::acceptor m_acceptor;
         Callback& m_callback;
     };
-}
+}}

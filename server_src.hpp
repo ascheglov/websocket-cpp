@@ -51,7 +51,10 @@ namespace websocket
             enqueue([=]
             {
                 if (auto conn = m_logic.find(connId))
-                    conn->sendFrame(isBinary ? Opcode::Binary : Opcode::Text, message);
+                {
+                    auto op = isBinary ? details::Opcode::Binary : details::Opcode::Text;
+                    conn->sendFrame(op, message);
+                }
             });
         }
 
@@ -92,8 +95,8 @@ namespace websocket
         boost::asio::io_service m_ioService;
         std::unique_ptr<std::thread> m_workerThread;
 
-        ServerLogic m_logic;
-        Acceptor<ServerLogic> m_acceptor;
+        details::ServerLogic m_logic;
+        details::Acceptor<details::ServerLogic> m_acceptor;
     };
 
     Server::Server() {}

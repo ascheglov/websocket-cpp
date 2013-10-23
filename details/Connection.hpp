@@ -12,7 +12,7 @@
 #include "server_fwd.hpp"
 #include "frames.hpp"
 
-namespace websocket
+namespace websocket { namespace details
 {
     template<typename Callback>
     class Connection
@@ -188,4 +188,4 @@ namespace websocket
         ConnectionId m_lastConnId{0};
         std::unordered_map<ConnectionId, std::unique_ptr<conn_t>> m_connections;
     };
-}
+}}

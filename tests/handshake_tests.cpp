@@ -2,6 +2,8 @@
 
 #include "catch_wrap.hpp"
 
+namespace ws_details = websocket::details;
+
 TEST_CASE("Validate request", "[websocket]")
 {
     http::Request rq;
@@ -20,51 +22,51 @@ TEST_CASE("Validate request", "[websocket]")
 
     SECTION("ok")
     {
-        REQUIRE(websocket::validateRequest(rq) == http::Status::OK);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::OK);
     }
 
     SECTION("not GET")
     {
         rq.method = http::Method::POST;
-        REQUIRE(websocket::validateRequest(rq) == http::Status::MethodNotAllowed);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::MethodNotAllowed);
     }
 
     SECTION("404")
     {
         rq.requestPath = "/foo";
-        REQUIRE(websocket::validateRequest(rq) == http::Status::NotFound);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::NotFound);
     }
 
     SECTION("not HTTP/1.1")
     {
         rq.httpVersion = http::Version::v1_0;
-        REQUIRE(websocket::validateRequest(rq) == http::Status::HTTPVersionNotSupported);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::HTTPVersionNotSupported);
     }
 
     SECTION("another websocket version")
     {
         rq.secWebSocketVersion = 1;
-        REQUIRE(websocket::validateRequest(rq) == http::Status::NotImplemented);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::NotImplemented);
     }
 
     SECTION("no `websocket' in upgrade field")
     {
         rq.upgrade.clear();
         rq.upgrade.push_back({"foo", ""});
-        REQUIRE(websocket::validateRequest(rq) == http::Status::BadRequest);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::BadRequest);
     }
 
     SECTION("no `upgrade' in connection field")
     {
         rq.connection.clear();
         rq.connection.push_back("keep-alive");
-        REQUIRE(websocket::validateRequest(rq) == http::Status::BadRequest);
+        REQUIRE(ws_details::validateRequest(rq) == http::Status::BadRequest);
     }
 }
 
 TEST_CASE("calc Sec-WebSocket-Accept", "[websocket]")
 {
-    REQUIRE(websocket::calcSecKeyHash("dGhlIHNhbXBsZSBub25jZQ==") == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
+    REQUIRE(ws_details::calcSecKeyHash("dGhlIHNhbXBsZSBub25jZQ==") == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
 }
 
 TEST_CASE("handshake", "[websocket]")
@@ -79,7 +81,7 @@ TEST_CASE("handshake", "[websocket]")
         "\r\n");
 
     std::ostringstream reply;
-    REQUIRE(websocket::handshake(request, reply) == http::Status::OK);
+    REQUIRE(ws_details::handshake(request, reply) == http::Status::OK);
     REQUIRE(reply.str() ==
         "HTTP/1.1 101 Switching Protocols\r\n"
         "Upgrade: websocket\r\n"

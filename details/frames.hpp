@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <string>
 
-namespace websocket
+namespace websocket { namespace details
 {
     enum class Opcode
     {
@@ -161,4 +161,4 @@ namespace websocket
         char m_buffer[BufferSize];
         std::size_t m_dataLen{0};
     };
-}
+}}

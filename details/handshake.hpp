@@ -9,7 +9,7 @@
 #include "sha1.hpp"
 #include "base64.hpp"
 
-namespace websocket
+namespace websocket { namespace details
 {
     inline http::Status validateRequest(const http::Request& rq)
     {
@@ -85,4 +85,4 @@ namespace websocket
 
         return status;
     }
-}
+}}
