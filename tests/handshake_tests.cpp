@@ -9,7 +9,7 @@ TEST_CASE("Validate request", "[websocket]")
     rq.requestPath = "/";
     rq.httpVersion = http::Version::v1_1;
     rq.secWebSocketVersion = 13;
-    //rq.secWebSocketKey = "AA==";
+    rq.secWebSocketKey = "AA==";
 
     rq.upgrade.push_back({"websocket", ""});
 

@@ -191,8 +191,8 @@ TEST_CASE_METHOD(WebsocketTestsFixture, "Long server messages", "[websocket][slo
         return actualFrame == expectedFrameHeader + msg;
     };
 
-//     REQUIRE(test(125, "\x81\x7d"));
-//     REQUIRE(test(126, str("\x81\x7e\x00\x7e")));
+    REQUIRE(test(125, "\x81\x7d"));
+    REQUIRE(test(126, str("\x81\x7e\x00\x7e")));
     REQUIRE(test(0x10000, str("\x81\x7f" "\x00\x00\x00\x00" "\x00\x01\x00\x00")));
 }
 
