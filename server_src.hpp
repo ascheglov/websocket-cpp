@@ -107,8 +107,11 @@ namespace websocket
 
         auto&& callback = [this](Event event, ConnectionId connId, std::string message)
         {
+            decltype(m_queue) tmpList;
+            tmpList.emplace_back(event, connId, std::move(message));
+
             std::lock_guard<std::mutex> lock{m_mutex};
-            m_queue.emplace_back(event, connId, std::move(message));
+            m_queue.splice(end(m_queue), tmpList);
         };
 
         boost::asio::ip::tcp::endpoint endpoint{boost::asio::ip::address_v4::from_string(ip), port};
@@ -121,12 +124,17 @@ namespace websocket
 
     bool Server::poll(Event& event, ConnectionId& connId, std::string& message)
     {
-        std::lock_guard<std::mutex> lock{m_mutex};
-        if (m_queue.empty())
-            return false;
+        decltype(m_queue) tmpList;
 
-        std::tie(event, connId, message) = m_queue.front();
-        m_queue.pop_front();
+        {
+            std::lock_guard<std::mutex> lock{m_mutex};
+            if (m_queue.empty())
+                return false;
+
+            tmpList.splice(begin(tmpList), m_queue, begin(m_queue));
+        }
+        
+        std::tie(event, connId, message) = std::move(tmpList.front());
         return true;
     }
 }

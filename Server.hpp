@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <deque>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -34,7 +34,7 @@ namespace websocket
         std::unique_ptr<Impl> m_impl;
 
         using tuple_t = std::tuple<Event, ConnectionId, std::string>;
-        std::deque<tuple_t> m_queue;
+        std::list<tuple_t> m_queue;
         std::mutex m_mutex;
     };
 }
