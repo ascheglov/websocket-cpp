@@ -5,6 +5,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <stdexcept>
 #include <string>
 
 namespace websocket { namespace details
@@ -139,7 +141,7 @@ namespace websocket { namespace details
         int payloadLen() const { return m_buffer[1] & 0x7f; }
         int payloadStart() const { return MinHeaderLen; }
         int frameLen() const { return payloadStart() + payloadLen(); }
-        std::string message() const { return{m_buffer + payloadStart(), payloadLen()}; }
+        std::string message() const { return{m_buffer + payloadStart(), static_cast<unsigned>(payloadLen())}; }
 
         void unmask()
         {

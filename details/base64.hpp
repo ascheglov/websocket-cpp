@@ -4,11 +4,15 @@
 #pragma once
 
 #include <string>
+#if defined _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4127) // conditional expression is constant
+#endif
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
+#if defined _MSC_VER
 #pragma warning(pop)
+#endif
 
 inline std::string b64encode(const void* data, std::size_t size)
 {

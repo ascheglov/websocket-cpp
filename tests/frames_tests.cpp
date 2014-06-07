@@ -23,7 +23,7 @@ namespace
         {
             const auto dataSize = write(data);
             return receiver.needReceiveMore(dataSize);
-        };
+        }
     };
 }
 

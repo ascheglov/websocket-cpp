@@ -113,9 +113,9 @@ namespace http { namespace parser
         auto isBase64Char = [](char c)
         {
             return
-                c >= 'A' && c <= 'Z' ||
-                c >= 'a' && c <= 'z' ||
-                c >= '0' && c <= '9' ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                (c >= '0' && c <= '9') ||
                 c == '+' || c == '/';
         };
 
