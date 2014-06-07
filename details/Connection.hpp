@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <boost/asio.hpp>
 
-#include "server_fwd.hpp"
+#include "../server_fwd.hpp"
 #include "frames.hpp"
 
 namespace websocket { namespace details

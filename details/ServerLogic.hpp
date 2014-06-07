@@ -10,7 +10,7 @@
 
 #include "Connection.hpp"
 #include "handshake.hpp"
-#include "server_fwd.hpp"
+#include "../server_fwd.hpp"
 
 namespace websocket { namespace details
 {
