@@ -42,5 +42,6 @@ target_link_libraries(tests ${Boost_LIBRARIES})
 
 if(WIN32)
     target_link_libraries(tests ws2_32 mswsock)
+else()
+    target_link_libraries(tests -lpthread)
 endif()
-
