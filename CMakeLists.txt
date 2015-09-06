@@ -6,13 +6,13 @@ if(MSVC)
     add_definitions(/W4 /WX -D_WIN32_WINNT=0x0601)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
 else()
-    add_definitions(-std=c++1y -Wall -pedantic)
+    add_definitions(-std=c++14 -Wall -pedantic)
 endif()
 
 set(Boost_USE_STATIC_LIBS ${WIN32})
 find_package(Boost 1.55 COMPONENTS coroutine context date_time regex system REQUIRED)
 
-include_directories(. ${Boost_INCLUDE_DIR})
+include_directories(. third_party ${Boost_INCLUDE_DIR})
 
 add_executable(tests
     websocket-cpp.cpp
