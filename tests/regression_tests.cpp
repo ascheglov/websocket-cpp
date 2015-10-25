@@ -1,7 +1,8 @@
 #include "Server.hpp"
 
-#include "catch_wrap.hpp"
+#include "third_party/catch/catch.hpp"
 
+#include <iostream>
 #include <thread>
 #include <tuple>
 #include <boost/asio.hpp>

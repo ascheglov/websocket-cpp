@@ -1,7 +1,7 @@
 // tests for sha1.hpp
 #include "details/sha1.hpp"
 
-#include "catch_wrap.hpp"
+#include "third_party/catch/catch.hpp"
 
 static std::string b2a_hex(const void* data, std::size_t size)
 {

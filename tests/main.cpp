@@ -1,5 +1,5 @@
 #define CATCH_CONFIG_RUNNER
-#include "catch_wrap.hpp"
+#include "third_party/catch/catch.hpp"
 
 #include <clocale>
 

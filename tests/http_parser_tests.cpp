@@ -1,7 +1,7 @@
 // http parser tests
 #include "details/http_parser.hpp"
 
-#include "catch_wrap.hpp"
+#include "third_party/catch/catch.hpp"
 
 #include <sstream>
 

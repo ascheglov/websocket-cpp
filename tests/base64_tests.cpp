@@ -1,7 +1,7 @@
 // tests for base64.hpp
 #include "details/base64.hpp"
 
-#include "catch_wrap.hpp"
+#include "third_party/catch/catch.hpp"
 
 template<std::size_t N>
 static std::string str(const char(&s)[N])

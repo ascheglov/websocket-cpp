@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 project(websocket-cpp)
 
 if(MSVC)
-    add_definitions(/W4 /WX -D_WIN32_WINNT=0x0601)
+    add_definitions(/W4 /WX /wd4005)
+    add_definitions(-D_WIN32_WINNT=0x0601)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
 else()
     add_definitions(-std=c++1y -Wall -pedantic)
@@ -35,7 +36,6 @@ add_executable(tests
     tests/main.cpp
     tests/regression_tests.cpp
     tests/sha1_tests.cpp
-    tests/catch_wrap.hpp
 )
 
 target_link_libraries(tests ${Boost_LIBRARIES})

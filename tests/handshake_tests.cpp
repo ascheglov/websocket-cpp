@@ -1,6 +1,6 @@
 #include "details/handshake.hpp"
 
-#include "catch_wrap.hpp"
+#include "third_party/catch/catch.hpp"
 
 namespace ws_details = websocket::details;
 
